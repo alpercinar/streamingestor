@@ -1,5 +1,9 @@
 package me.cmath.streamingestor;
 
+import com.google.common.util.concurrent.RateLimiter;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -13,27 +17,54 @@ import org.apache.commons.cli.Options;
 public class MainIngestor {
 
   public static final String APP_NAME = "StreamIngestor";
-  public static int serverPort = 18000;
-  public static int throughPut = 10000;
-  public static int duration = 3000;
-  public static String dataSourceFile = "";
+  private int _serverPort = 18000;
+  private int _throughPut = 10000;
+  private int _duration = 3000;
+  private String _dataSourceFile = "";
+  private ServerSocket _listenSocket;
 
-  public static void startServer() {
+  public MainIngestor(int serverPort, int throughPut, int duration, String dataSourceFile) {
+    _serverPort = (serverPort == 0) ? _serverPort : serverPort;
+    _throughPut = (throughPut == 0) ? _throughPut : throughPut;
+    _duration = (duration == 0) ? _duration : duration;
+    _dataSourceFile = dataSourceFile;
+  }
+
+  public void startServer() {
     try {
-      ServerSocket listenSocket = new ServerSocket(serverPort);
-
-      System.out.println("Server started on port " + serverPort + "..");
-
+      _listenSocket = new ServerSocket(_serverPort);
+      BufferedReader dataSource = new BufferedReader(new FileReader(new File(_dataSourceFile)));
+      RateLimiter rateLimiter = RateLimiter.create(_throughPut);
+      final long startTime = System.currentTimeMillis();
+      System.out.println("Server started on port " + _serverPort + "..");
       while (true) {
-        Socket clientSocket = listenSocket.accept();
-        StreamServer c = new StreamServer(clientSocket, throughPut, duration, dataSourceFile);
+        if (_listenSocket.isClosed()) {
+          System.out.println("Closing server..");
+          break;
+        }
+        Socket clientSocket = _listenSocket.accept();
+        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource);
+
       }
     } catch (IOException e) {
-      System.out.println("Error: " + e.getMessage());
+      System.out.println("Error: " + e.getMessage() + " (using localhost:" + _serverPort + ")");
+    } catch (Exception e) {
+      System.out.println("Shutting down due to interruption..");
+    }
+  }
+
+  public void stopServer() {
+    try {
+      _listenSocket.close();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 
   public static void main(String[] args) {
+    int serverPort = 0, throughPut = 0, duration = 0;
+    String dataSourceFile = null;
+
     Options options = new Options();
 
     options.addOption("h", "help", false, "Show this dialog");
@@ -73,6 +104,7 @@ public class MainIngestor {
       System.exit(0);
     }
 
-    startServer();
+    MainIngestor mainIngestor = new MainIngestor(serverPort, throughPut, duration, dataSourceFile);
+    mainIngestor.startServer();
   }
 }

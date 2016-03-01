@@ -4,8 +4,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.EOFException;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
 
@@ -17,14 +15,16 @@ public class StreamServer extends Thread {
   private Socket _clientSocket;
   private RateLimiter _rateLimiter;
   private final int END_OF_STREAM_SIG = -1;
+  private long _startTime;
 
-  public StreamServer(Socket aClientSocket, int throughPut, int duration, String dataSourceFile) {
+  public StreamServer(Socket aClientSocket, RateLimiter rateLimiter, long startTime, int duration, BufferedReader dataSource) {
 
     try {
       _duration = duration;
-      _sourceBuffer = new BufferedReader(new FileReader(new File(dataSourceFile)));
-      _rateLimiter = RateLimiter.create(throughPut);
+      _sourceBuffer = dataSource;
+      _rateLimiter = rateLimiter;
       _clientSocket = aClientSocket;
+      _startTime = startTime;
 
       _output = new BufferedOutputStream(_clientSocket.getOutputStream());
       this.start();
@@ -40,7 +40,6 @@ public class StreamServer extends Thread {
           _clientSocket.getInetAddress() + ":" +
           _clientSocket.getPort() + " connected. Starting stream..");
 
-      long start = System.currentTimeMillis();
       String tuple;
       while ((tuple = _sourceBuffer.readLine()) != null) {
         _rateLimiter.acquire();
@@ -48,7 +47,7 @@ public class StreamServer extends Thread {
         _output.write(tuple.length());
         _output.write(tuple.getBytes());
 
-        if (System.currentTimeMillis() - start > _duration) {
+        if (System.currentTimeMillis() - _startTime > _duration) {
           break;
         }
       }
