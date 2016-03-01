@@ -16,8 +16,7 @@ public class MainIngestor {
   public static int serverPort = 18000;
   public static int throughPut = 10000;
   public static int duration = 3000;
-  public static String dataSourceFile =
-      "/Users/christian/Documents/Workspace/s-store/tpcdidata/withdebug/Batch1/Trade.txt";
+  public static String dataSourceFile = "";
 
   public static void startServer() {
     try {
@@ -37,11 +36,11 @@ public class MainIngestor {
   public static void main(String[] args) {
     Options options = new Options();
 
-    options.addOption("h", "help", false, "Show help");
+    options.addOption("h", "help", false, "Show this dialog");
     options.addOption("p", "port", true, "The port that the server runs on");
     options.addOption("t", "throughput", true, "The amount of tuples per second that will be streamed");
     options.addOption("d", "duration", true, "The amount of time in ms that tuples will be streamed");
-    options.addOption("f", "file", true, "The file that tuples will be pulled from");
+    options.addOption("f", "file", true, "The input file with tuples separated by line breaks");
 
     CommandLineParser parser = new BasicParser();
     HelpFormatter formater = new HelpFormatter();
@@ -65,9 +64,10 @@ public class MainIngestor {
       }
       if (cmd.hasOption("f")) {
         dataSourceFile = cmd.getOptionValue("f");
+      } else {
+        System.err.println("Please specifiy an input file");
+        System.exit(1);
       }
-
-
     } catch (Exception e) {
       formater.printHelp(APP_NAME, options);
       System.exit(0);
