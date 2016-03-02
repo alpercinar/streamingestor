@@ -44,19 +44,21 @@ public class StreamServer extends Thread {
           _clientSocket.getPort() + " connected. Starting stream..");
 
       String tuple;
+      int localTuples = 0;
       while ((tuple = _sourceBuffer.readLine()) != null) {
         _rateLimiter.acquire();
 
         _output.write(tuple.length());
         _output.write(tuple.getBytes());
         _cosumedTuples.incrementAndGet();
+        localTuples++;
         if (System.currentTimeMillis() - _startTime > _duration) {
           break;
         }
       }
       // Send kill signal
       _output.write(END_OF_STREAM_SIG);
-      System.out.println("Stream ended.");
+      System.out.println("Stream ended. Streamed " + localTuples + " tuples.");
     } catch (EOFException e) {
       System.out.println("EOF:" + e.getMessage());
     } catch (IOException e) {
