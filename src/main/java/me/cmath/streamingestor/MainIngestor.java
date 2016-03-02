@@ -39,7 +39,7 @@ public class MainIngestor {
       _listenSocket = new ServerSocket(_serverPort);
       BufferedReader dataSource = new BufferedReader(new FileReader(new File(_dataSourceFile)));
       RateLimiter rateLimiter = RateLimiter.create(_throughPut);
-      final long startTime = System.currentTimeMillis();
+      long startTime = 0;
       System.out.println("Server started on port " + _serverPort + "..");
       while (true) {
         if (_listenSocket.isClosed()) {
@@ -47,6 +47,9 @@ public class MainIngestor {
           break;
         }
         Socket clientSocket = _listenSocket.accept();
+        if (startTime == 0) {
+          startTime = System.currentTimeMillis();
+        }
         StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples);
         if (System.currentTimeMillis() - startTime > _duration+3000) {
           printStats();
