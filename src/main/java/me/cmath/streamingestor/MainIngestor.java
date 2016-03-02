@@ -42,15 +42,16 @@ public class MainIngestor {
       final long startTime = System.currentTimeMillis();
       System.out.println("Server started on port " + _serverPort + "..");
       while (true) {
-        if (System.currentTimeMillis() - startTime > _duration+3000) {
-          printStats();
-        }
         if (_listenSocket.isClosed()) {
           printStats();
           break;
         }
         Socket clientSocket = _listenSocket.accept();
         StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples);
+        if (System.currentTimeMillis() - startTime > _duration+3000) {
+          printStats();
+          break;
+        }
 
       }
     } catch (IOException e) {
