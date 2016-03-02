@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -22,12 +23,15 @@ public class MainIngestor {
   private int _duration = 3000;
   private String _dataSourceFile = "";
   private ServerSocket _listenSocket;
+  private AtomicInteger _consumedTuples;
 
   public MainIngestor(int serverPort, int throughPut, int duration, String dataSourceFile) {
     _serverPort = (serverPort == 0) ? _serverPort : serverPort;
     _throughPut = (throughPut == 0) ? _throughPut : throughPut;
     _duration = (duration == 0) ? _duration : duration;
     _dataSourceFile = dataSourceFile;
+    _consumedTuples = new AtomicInteger(0);
+
   }
 
   public void startServer() {
@@ -38,12 +42,15 @@ public class MainIngestor {
       final long startTime = System.currentTimeMillis();
       System.out.println("Server started on port " + _serverPort + "..");
       while (true) {
+        if (System.currentTimeMillis() - startTime > _duration+3000) {
+          printStats();
+        }
         if (_listenSocket.isClosed()) {
-          System.out.println("Closing server..");
+          printStats();
           break;
         }
         Socket clientSocket = _listenSocket.accept();
-        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource);
+        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples);
 
       }
     } catch (IOException e) {
@@ -53,8 +60,16 @@ public class MainIngestor {
     }
   }
 
+  private void printStats() {
+    double actualTP = (double) _consumedTuples.get() / (_duration/1000.0);
+    System.out.println("Duration has passed. Shutting down server..");
+    System.out.println("Consumed tuples: " + _consumedTuples.get());
+    System.out.println("Actual throughput: " + actualTP + " tuples/sec");
+  }
+
   public void stopServer() {
     try {
+      printStats();
       _listenSocket.close();
     } catch (IOException e) {
       e.printStackTrace();

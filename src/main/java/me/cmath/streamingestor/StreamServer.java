@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class StreamServer extends Thread {
@@ -16,8 +17,10 @@ public class StreamServer extends Thread {
   private RateLimiter _rateLimiter;
   private final int END_OF_STREAM_SIG = -1;
   private long _startTime;
+  private AtomicInteger _cosumedTuples;
 
-  public StreamServer(Socket aClientSocket, RateLimiter rateLimiter, long startTime, int duration, BufferedReader dataSource) {
+  public StreamServer(Socket aClientSocket, RateLimiter rateLimiter, long startTime, int duration,
+      BufferedReader dataSource, AtomicInteger consumedTuples) {
 
     try {
       _duration = duration;
@@ -25,7 +28,7 @@ public class StreamServer extends Thread {
       _rateLimiter = rateLimiter;
       _clientSocket = aClientSocket;
       _startTime = startTime;
-
+      _cosumedTuples = consumedTuples;
       _output = new BufferedOutputStream(_clientSocket.getOutputStream());
       this.start();
     } catch (IOException e) {
@@ -46,7 +49,7 @@ public class StreamServer extends Thread {
 
         _output.write(tuple.length());
         _output.write(tuple.getBytes());
-
+        _cosumedTuples.incrementAndGet();
         if (System.currentTimeMillis() - _startTime > _duration) {
           break;
         }
