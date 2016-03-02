@@ -31,7 +31,6 @@ public class MainIngestor {
     _duration = (duration == 0) ? _duration : duration;
     _dataSourceFile = dataSourceFile;
     _consumedTuples = new AtomicInteger(0);
-
   }
 
   public void startServer() {
@@ -51,11 +50,10 @@ public class MainIngestor {
           startTime = System.currentTimeMillis();
         }
         StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples);
-        if (System.currentTimeMillis() - startTime > _duration+3000) {
+        if (System.currentTimeMillis() - startTime > _duration + 3000) {
           printStats();
           break;
         }
-
       }
     } catch (IOException e) {
       System.out.println("Error: " + e.getMessage() + " (using localhost:" + _serverPort + ")");
@@ -64,9 +62,9 @@ public class MainIngestor {
     }
   }
 
-  private void printStats() {
-    double actualTP = (double) _consumedTuples.get() / (_duration/1000.0);
-    System.out.println("Duration has passed. Shutting down server..");
+  public void printStats() {
+    double actualTP = (double) _consumedTuples.get() / (_duration / 1000.0);
+    System.out.println("Shutting down server..");
     System.out.println("Consumed tuples: " + _consumedTuples.get());
     System.out.println("Actual throughput: " + actualTP + " tuples/sec");
   }
@@ -123,7 +121,15 @@ public class MainIngestor {
       System.exit(0);
     }
 
-    MainIngestor mainIngestor = new MainIngestor(serverPort, throughPut, duration, dataSourceFile);
+    final MainIngestor mainIngestor = new MainIngestor(serverPort, throughPut, duration, dataSourceFile);
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        mainIngestor.printStats();
+      }
+    });
     mainIngestor.startServer();
+
+
   }
 }
