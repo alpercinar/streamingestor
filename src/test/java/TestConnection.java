@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.util.HashSet;
 import me.cmath.streamingestor.MainIngestor;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -26,7 +25,7 @@ public class TestConnection {
   private final String IP = "localhost";
   private final String TEST_DATA_FILE = "testdata.txt";
   private final String SAMPLE_TUPLE =
-      "44|2012-07-07 03:16:55|CMPT|TMB|0|AAAAAAAAAAAADRC|3045|2.82|28|5663|2.89|34.70|36.13|3284.36\n";
+      "|2012-07-07 03:16:55|CMPT|TMB|0|AAAAAAAAAAAADRC|3045|2.82|28|5663|2.89|34.70|36.13|3284.36\n";
   private final int NUM_SAMPLE_TUPLES = 200000;
   private final int DURATION = 3000;
   private final int THROUGHPUT = 10000;
@@ -34,14 +33,15 @@ public class TestConnection {
 
   private Thread _serverThread;
   private MainRunner _mainRunner;
+  private int _maxTuples = -1;
 
   public class MainRunner implements Runnable {
 
     MainIngestor _mainIngestor;
 
-    public MainRunner(int port) {
+    public MainRunner(int port, int maxTuples) {
       System.out.println("Initializing main runner on port " + port);
-      _mainIngestor = new MainIngestor(port, THROUGHPUT, DURATION, TEST_DATA_FILE);
+      _mainIngestor = new MainIngestor(port, THROUGHPUT, DURATION, maxTuples, TEST_DATA_FILE);
     }
 
     public void stop() {
@@ -76,7 +76,7 @@ public class TestConnection {
         long start = System.currentTimeMillis();
         while (true) {
           int length = in.read();
-          if (length == -1) {
+          if(length == -1 || length == 0) {
             break;
           }
           byte[] messageByte = new byte[length];
@@ -112,7 +112,6 @@ public class TestConnection {
   /**
    * Set up server in separate thread and create dummy data
    */
-  @Before
   public void setup() {
 
     // Create sample file with plenty of tuples
@@ -126,7 +125,7 @@ public class TestConnection {
       fail();
     }
 
-    _mainRunner = new MainRunner(PORT);
+    _mainRunner = new MainRunner(PORT, _maxTuples);
     _serverThread = new Thread(_mainRunner);
     _serverThread.start();
   }
@@ -153,7 +152,7 @@ public class TestConnection {
    */
   @Test
   public void testSingleConnection() {
-
+    setup();
     Socket clientSocket = null;
     try {
       int serverPort = PORT;
@@ -168,7 +167,7 @@ public class TestConnection {
       long start = System.currentTimeMillis();
       while (true) {
         int length = in.read();
-        if (length == -1) {
+        if (length == -1 || length == 0) {
           break;
         }
         byte[] messageByte = new byte[length];
@@ -211,7 +210,7 @@ public class TestConnection {
    */
   @Test
   public void testMultipleConnections() {
-
+    setup();
     HashSet<String> foundTuples1, foundTuples2;
     foundTuples1 = new HashSet<>();
     foundTuples2 = new HashSet<>();
@@ -233,6 +232,36 @@ public class TestConnection {
     // Test that there are no duplicates
     foundTuples1.retainAll(foundTuples2);
 
-    assertEquals(1, foundTuples1.size());
+    assertEquals(0, foundTuples1.size());
+  }
+
+  /**
+   * Test that two connections will consume exactly the amount of desired tuples.
+   */
+  @Test
+  public void testMaxTuples() {
+    _maxTuples = 1000;
+
+    setup();
+
+    HashSet<String> foundTuples1, foundTuples2;
+    foundTuples1 = new HashSet<>();
+    foundTuples2 = new HashSet<>();
+    ConnectionRunner connection1 = new ConnectionRunner(foundTuples1);
+    Thread t1 = new Thread(connection1);
+    t1.start();
+
+    ConnectionRunner connection2 = new ConnectionRunner(foundTuples2);
+    Thread t2 = new Thread(connection2);
+    t2.start();
+
+    try {
+      t1.join();
+      t2.join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+
+    assertEquals(1000, foundTuples1.size()+foundTuples2.size());
   }
 }

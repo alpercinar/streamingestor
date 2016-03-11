@@ -21,16 +21,18 @@ public class MainIngestor {
   private int _serverPort = 18000;
   private int _throughPut = 10000;
   private int _duration = 3000;
+  private int _maxTupels = -1;
   private String _dataSourceFile = "";
   private ServerSocket _listenSocket;
   private AtomicInteger _consumedTuples;
 
-  public MainIngestor(int serverPort, int throughPut, int duration, String dataSourceFile) {
+  public MainIngestor(int serverPort, int throughPut, int duration, int maxTupels, String dataSourceFile) {
     _serverPort = (serverPort == 0) ? _serverPort : serverPort;
     _throughPut = (throughPut == 0) ? _throughPut : throughPut;
     _duration = (duration == 0) ? _duration : duration;
     _dataSourceFile = dataSourceFile;
     _consumedTuples = new AtomicInteger(0);
+    _maxTupels = maxTupels;
   }
 
   public void startServer() {
@@ -49,7 +51,7 @@ public class MainIngestor {
         if (startTime == 0) {
           startTime = System.currentTimeMillis();
         }
-        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples);
+        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples, _maxTupels);
         if (System.currentTimeMillis() - startTime > _duration + 3000) {
           printStats();
           break;
@@ -79,7 +81,7 @@ public class MainIngestor {
   }
 
   public static void main(String[] args) {
-    int serverPort = 0, throughPut = 0, duration = 0;
+    int serverPort = 0, throughPut = 0, duration = 0, maxTuples = -1;
     String dataSourceFile = null;
 
     Options options = new Options();
@@ -89,6 +91,7 @@ public class MainIngestor {
     options.addOption("t", "throughput", true, "The amount of tuples per second that will be streamed");
     options.addOption("d", "duration", true, "The amount of time in ms that tuples will be streamed");
     options.addOption("f", "file", true, "The input file with tuples separated by line breaks");
+    options.addOption("m", "maxtuples", true, "Max tuples to read from file. This will override any time contraints and close the stream when all tuples have been streamed.");
 
     CommandLineParser parser = new BasicParser();
     HelpFormatter formater = new HelpFormatter();
@@ -101,6 +104,9 @@ public class MainIngestor {
         System.exit(0);
       }
 
+      if (cmd.hasOption("m")) {
+        maxTuples = Integer.parseInt(cmd.getOptionValue("m"));
+      }
       if (cmd.hasOption("p")) {
         serverPort = Integer.parseInt(cmd.getOptionValue("p"));
       }
@@ -121,7 +127,7 @@ public class MainIngestor {
       System.exit(0);
     }
 
-    final MainIngestor mainIngestor = new MainIngestor(serverPort, throughPut, duration, dataSourceFile);
+    final MainIngestor mainIngestor = new MainIngestor(serverPort, throughPut, duration, maxTuples, dataSourceFile);
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
