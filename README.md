@@ -3,7 +3,7 @@ A simple tool for streaming a file through Java Sockets
 
 # Usuage
 ```
-java -jar streamingestor.jar -f <file> -t <throughout> -d <duration> -p <port>
+java -jar streamingestor.jar -f <file> -t <throughout> -d <duration> -p <port> -m <maxtupels>
 ```
 # How to build
 To build, simply run
