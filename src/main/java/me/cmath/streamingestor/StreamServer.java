@@ -1,11 +1,10 @@
 package me.cmath.streamingestor;
 
 import com.google.common.util.concurrent.RateLimiter;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.EOFException;
-import java.io.IOException;
+
+import java.io.*;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -13,7 +12,7 @@ public class StreamServer extends Thread {
   private int _maxTuples;
   private int _duration;
   private BufferedReader _sourceBuffer;
-  private BufferedOutputStream _output;
+  private OutputStreamWriter _output;
   private Socket _clientSocket;
   private RateLimiter _rateLimiter;
   private final int END_OF_STREAM_SIG = 0;
@@ -31,7 +30,7 @@ public class StreamServer extends Thread {
       _startTime = startTime;
       _cosumedTuples = consumedTuples;
       _maxTuples = maxTupels;
-      _output = new BufferedOutputStream(_clientSocket.getOutputStream());
+      _output = new OutputStreamWriter(_clientSocket.getOutputStream(), Charset.forName("UTF-8").newEncoder());
       this.start();
     } catch (IOException e) {
       System.out.println(e.getMessage());
@@ -55,7 +54,7 @@ public class StreamServer extends Thread {
         }
 
         _output.write(tuple.length());
-        _output.write(tuple.getBytes());
+        _output.write(tuple);
 
         localTuples++;
         if (_maxTuples == -1 && System.currentTimeMillis() - _startTime > _duration) {
