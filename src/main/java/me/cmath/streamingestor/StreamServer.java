@@ -18,9 +18,12 @@ public class StreamServer extends Thread {
   private final int END_OF_STREAM_SIG = 0;
   private long _startTime;
   private AtomicInteger _cosumedTuples;
+  private final Object _fileLock;
 
   public StreamServer(Socket aClientSocket, RateLimiter rateLimiter, long startTime, int duration,
-      BufferedReader dataSource, AtomicInteger consumedTuples, int maxTupels) {
+      BufferedReader dataSource, AtomicInteger consumedTuples, int maxTupels, Object lock) {
+
+    _fileLock = lock;
 
     try {
       _duration = duration;
@@ -46,21 +49,32 @@ public class StreamServer extends Thread {
 
       String tuple;
       int localTuples = 0;
-      while ((tuple = _sourceBuffer.readLine()) != null) {
+
+      do {
+        synchronized (_fileLock) {
+          tuple = _sourceBuffer.readLine();
+        }
+
+        if (tuple == null) {
+          break;
+        }
+
         _rateLimiter.acquire();
         _cosumedTuples.incrementAndGet();
         if (_maxTuples != -1 && _cosumedTuples.get() > _maxTuples) {
           break;
         }
 
-        _output.write(tuple.length());
+//        _output.write(tuple.length());
         _output.write(tuple);
+        _output.write(System.lineSeparator());
 
         localTuples++;
         if (_maxTuples == -1 && System.currentTimeMillis() - _startTime > _duration) {
           break;
         }
-      }
+      } while (true);
+
       // Send kill signal
       _output.write(END_OF_STREAM_SIG);
       _output.close();

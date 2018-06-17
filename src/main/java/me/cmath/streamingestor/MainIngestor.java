@@ -37,6 +37,8 @@ public class MainIngestor {
 
   public void startServer() {
     try {
+      Object fileLock = new Object();
+
       _listenSocket = new ServerSocket(_serverPort);
       BufferedReader dataSource = new BufferedReader(new FileReader(new File(_dataSourceFile)));
       RateLimiter rateLimiter = RateLimiter.create(_throughPut);
@@ -51,7 +53,8 @@ public class MainIngestor {
         if (startTime == 0) {
           startTime = System.currentTimeMillis();
         }
-        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples, _maxTupels);
+
+        StreamServer c = new StreamServer(clientSocket, rateLimiter, startTime, _duration, dataSource, _consumedTuples, _maxTupels, fileLock);
         if (System.currentTimeMillis() - startTime > _duration + 3000) {
           printStats();
           break;
